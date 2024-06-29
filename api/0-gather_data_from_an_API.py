@@ -1,46 +1,45 @@
 #!/usr/bin/python3
+"""
+    Given employee ID, returns information about his/her TODO list progress.
+"""
+
+
 import requests
+import sys
 
-# Constants
-USER_ID = 1
-TODO_URL = 'https://jsonplaceholder.typicode.com/todos'
-USER_URL = f'https://jsonplaceholder.typicode.com/users/{USER_ID}'
+base_url = 'https://jsonplaceholder.typicode.com/'
 
-# Function to fetch data from the given URL
-def fetch_data(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Failed to retrieve data from {url}, status code: {response.status_code}")
-        return None
 
-# Fetch employee data
-employee = fetch_data(USER_URL)
-if employee is None:
-    print("Failed to retrieve employee data.")
-    exit(1)  # Exit the script if employee data cannot be retrieved
+def do_request():
+    '''Performs request'''
+    if len(sys.argv) < 2:
+        return print('USAGE:', __file__, '<employee id>')
+    eid = sys.argv[1]
+    try:
+        _eid = int(sys.argv[1])
+    except ValueError:
+        return print('Employee id must be an integer')
 
-# Fetch todos data
-todos = fetch_data(TODO_URL)
-if todos is None:
-    print("Failed to retrieve todos data.")
-    exit(1)  # Exit the script if todos data cannot be retrieved
+    response = requests.get(base_url + 'users/' + eid)
+    if response.status_code == 404:
+        return print('User id not found')
+    elif response.status_code != 200:
+        return print('Error: status_code:', response.status_code)
+    user = response.json()
 
-# Initialize counters
-todo_counter = 0
-completed_counter = 0
+    response = requests.get(base_url + 'todos/')
+    if response.status_code != 200:
+        return print('Error: status_code:', response.status_code)
+    todos = response.json()
 
-# Process todos
-for todo in todos:
-    if todo['userId'] == USER_ID:
-        todo_counter += 1
-        if todo['completed']:
-            completed_counter += 1
+    user_todos = [todo for todo in todos
+                  if todo.get('userId') == user.get('id')]
+    completed = [todo for todo in user_todos if todo.get('completed')]
+    print('Employee', user.get('name'),
+          'is done with tasks({}/{}):'.
+          format(len(completed), len(user_todos)))
+    [print('\t', todo.get('title')) for todo in completed]
 
-# Print the results
-print(f"Employee {employee['name']} is done with tasks ({completed_counter}/{todo_counter}):")
-for todo in todos:
-    if todo['userId'] == USER_ID and todo['completed']:
-        print(f"\t {todo['title']}")
 
+if __name__ == '__main__':
+    do_request()
